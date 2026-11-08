@@ -77,6 +77,13 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
+      - name: Prepare Electron runtime
+        if: ${{ !inputs.installers }}
+        env:
+          # Electron downloads its binary on first use. Do that outside the
+          # test timeout, using Node mode so no journal window/profile opens.
+          ELECTRON_RUN_AS_NODE: '1'
+        run: pnpm exec electron --version
       - name: Install Linux desktop dependencies
         if: runner.os == 'Linux'
         run: |
@@ -133,6 +140,11 @@ jobs:
               "--config.publish.channel=latest-$TARGET_ARCH"
               "--config.extraMetadata.journalReleaseUrl=https://github.com/$GITHUB_REPOSITORY/releases/latest")
           fi
+          # electron-builder treats an empty CSC_LINK as a local certificate
+          # path (the workspace), rather than as an absent credential.
+          for name in CSC_LINK CSC_KEY_PASSWORD WIN_CSC_LINK WIN_CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "${!name}" ]; then unset "$name"; fi
+          done
           pnpm exec electron-builder "${args[@]}"
       - name: Check the packaged application
         env:
