@@ -1,0 +1,164 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+:root {
+  --background: #f9f8f4;
+  --foreground: #343a35;
+  --muted: #6f7469;
+  --line: #e4e5dc;
+  --surface: #f2f2eb;
+  --accent: #a56848;
+  --sage: #8b9a78;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-surface: var(--surface);
+  --color-accent: var(--accent);
+  --color-sage: var(--sage);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-sans);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #1c201d;
+    --foreground: #dce0d5;
+    --muted: #969d90;
+    --line: #343a32;
+    --surface: #252b25;
+    --accent: #d2a282;
+    --sage: #9fae8d;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--sage) 28%, transparent);
+}
+
+.journal-input {
+  --tw-prose-body: var(--foreground);
+  --tw-prose-headings: var(--foreground);
+  --tw-prose-bold: var(--foreground);
+  --tw-prose-links: var(--accent);
+  --tw-prose-counters: var(--muted);
+  --tw-prose-bullets: var(--sage);
+  --tw-prose-quotes: var(--foreground);
+  --tw-prose-quote-borders: var(--sage);
+  --tw-prose-code: var(--foreground);
+  --tw-prose-pre-code: var(--foreground);
+  --tw-prose-pre-bg: var(--surface);
+  --tw-prose-hr: var(--line);
+  position: relative;
+  min-height: 20rem;
+  caret-color: var(--accent);
+  font-family: var(--font-geist-sans), sans-serif;
+  overflow-wrap: anywhere;
+}
+
+.journal-input h1 {
+  position: relative;
+  padding-left: 2.75rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 1.25rem;
+}
+
+.journal-input h1::after {
+  content: "";
+  position: absolute;
+  top: 0.75em;
+  left: 0;
+  width: 2rem;
+  height: 1px;
+  background: color-mix(in srgb, var(--accent) 50%, transparent);
+  pointer-events: none;
+}
+
+.journal-input > :first-child {
+  margin-top: 0;
+}
+
+.journal-input h1.is-empty::before,
+.journal-input p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.journal-input:focus-visible {
+  outline: none;
+}
+
+.journal-input a {
+  text-underline-offset: 3px;
+}
+
+.journal-dated-paragraph {
+  position: relative;
+}
+
+.journal-date-marker {
+  position: absolute;
+  top: 0.45em;
+  right: calc(100% + 2.5rem);
+  display: flex;
+  width: 11.25rem;
+  flex-direction: column;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-family: var(--font-geist-sans), sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+}
+
+.journal-date-marker time::before {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  margin-right: 8px;
+  margin-bottom: 2px;
+  border-radius: 50%;
+  background: var(--sage);
+}
+
+@media (width < 40rem) {
+  .journal-dated-paragraph {
+    padding-top: 1.75rem;
+  }
+
+  .journal-date-marker {
+    top: 0;
+    left: 0;
+    right: auto;
+    width: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+  }
+}
