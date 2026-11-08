@@ -22,6 +22,16 @@ async function getJournalWindow(app: ElectronApplication) {
   // DevTools can be the first reported window when it opens automatically.
   const findJournal = () => app.windows().find((page) => page.url().startsWith("journal://app/"));
   await expect.poll(findJournal).toBeTruthy();
+  // Detached DevTools can obscure the title bar or take keyboard focus on
+  // macOS. Close them before interacting with any source-launched window.
+  await app.evaluate(async ({ app, BrowserWindow }) => {
+    const win = BrowserWindow.getAllWindows().find((window) => window.webContents.getURL().startsWith("journal://app/"))!;
+    if (!app.isPackaged && !win.webContents.isDevToolsOpened()) {
+      await new Promise<void>((resolve) => win.webContents.once("devtools-opened", () => resolve()));
+    }
+    win.webContents.closeDevTools();
+    win.focus();
+  });
   return findJournal()!;
 }
 
@@ -92,16 +102,6 @@ test("closing the window flushes pending edits and reopening restores them", asy
   let app: ElectronApplication | undefined = await launch(profile);
   try {
     let page = await getJournalWindow(app);
-    // Keep the automatically opened debugger from taking keyboard focus while
-    // the test types; production builds do not open it.
-    await app.evaluate(async ({ app, BrowserWindow }) => {
-      const win = BrowserWindow.getAllWindows().find((window) => window.webContents.getURL().startsWith("journal://app/"))!;
-      if (!app.isPackaged && !win.webContents.isDevToolsOpened()) {
-        await new Promise<void>((resolve) => win.webContents.once("devtools-opened", () => resolve()));
-      }
-      win.webContents.closeDevTools();
-      win.focus();
-    });
     const journal = page.getByRole("textbox", { name: "Journal entry" });
     await journal.locator("h1").click();
     await page.keyboard.type("My desktop journal");

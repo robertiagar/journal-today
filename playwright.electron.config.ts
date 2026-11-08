@@ -5,5 +5,5 @@ export default defineConfig({
   outputDir: "./test-results/electron",
   workers: 1,
   timeout: 30_000,
-  use: { trace: "retain-on-failure" },
+  use: { trace: "retain-on-failure", actionTimeout: 10_000 },
 });
