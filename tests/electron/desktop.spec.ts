@@ -24,15 +24,27 @@ async function getJournalWindow(app: ElectronApplication) {
   await expect.poll(findJournal).toBeTruthy();
   // Detached DevTools can obscure the title bar or take keyboard focus on
   // macOS. Close them before interacting with any source-launched window.
-  await app.evaluate(async ({ app, BrowserWindow }) => {
+  await app.evaluate(async ({ app, BrowserWindow, screen }) => {
     const win = BrowserWindow.getAllWindows().find((window) => window.webContents.getURL().startsWith("journal://app/"))!;
     if (!app.isPackaged && !win.webContents.isDevToolsOpened()) {
       await new Promise<void>((resolve) => win.webContents.once("devtools-opened", () => resolve()));
     }
     win.webContents.closeDevTools();
+    // Hosted Macs can have a work area smaller than the app's default window,
+    // so it may start zoomed. Give window-control tests a known restored size.
+    const area = screen.getPrimaryDisplay().workArea;
+    win.unmaximize();
+    win.setBounds({
+      x: area.x + 40,
+      y: area.y + 40,
+      width: Math.max(520, Math.min(900, area.width - 80)),
+      height: Math.max(480, Math.min(640, area.height - 80)),
+    });
     win.focus();
   });
-  return findJournal()!;
+  const page = findJournal()!;
+  page.setDefaultTimeout(10_000);
+  return page;
 }
 
 test("the offline desktop has isolated window controls and a draggable title bar", async () => {
