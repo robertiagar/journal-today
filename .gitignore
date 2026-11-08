@@ -41,6 +41,9 @@
 *.jks
 /.secrets/
 
+# local signing notes retained outside source control
+/local-docs/
+
 # debug
 npm-debug.log*
 yarn-debug.log*

@@ -1,10 +1,11 @@
 # Journal / Today
 
-[![Release](https://img.shields.io/github/v/release/robertiagar/journal-today)](https://github.com/robertiagar/journal-today/releases/latest)
+[![Release including prereleases](https://img.shields.io/github/v/release/robertiagar/journal-today?include_prereleases&sort=semver)](https://github.com/robertiagar/journal-today/releases)
 [![Downloads](https://img.shields.io/github/downloads/robertiagar/journal-today/total)](https://github.com/robertiagar/journal-today/releases)
 [![Build installers](https://github.com/robertiagar/journal-today/actions/workflows/release.yml/badge.svg)](https://github.com/robertiagar/journal-today/actions/workflows/release.yml)
 [![CI](https://github.com/robertiagar/journal-today/actions/workflows/ci.yml/badge.svg)](https://github.com/robertiagar/journal-today/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Preview: unsigned](https://img.shields.io/badge/preview-unsigned-yellow)](#github-builds-and-releases)
 
 A quiet, offline Electron journal with a borderless window, a draggable title bar, custom window controls, and a softly rounded writing surface. Markdown formatting, local saving, and midnight date markers carry over from the original application.
 
@@ -52,7 +53,7 @@ Builds an unpacked desktop application in `release/`. On Windows, launch `releas
 pnpm dist
 ```
 
-Builds an installer for the current platform: NSIS on Windows, DMG plus ZIP on macOS, or AppImage on Linux. Build each platform on that platform. Local builds use Electron's default icon and have no configured publisher identity. See [signing setup](docs/SIGNING.md) for optional signing and notarization in GitHub builds.
+Builds an installer for the current platform: NSIS on Windows, DMG plus ZIP on macOS, or AppImage on Linux. Build each platform on that platform. Local builds use Electron's default icon and have no configured publisher identity.
 
 ### GitHub builds and releases
 
@@ -79,13 +80,15 @@ To try a build without creating a release:
 To prepare a release:
 
 1. Update `version` in `package.json` and commit the change. Use a new version for each public release.
-2. Create and push the matching tag, for example `git tag v0.1.0` followed by `git push origin v0.1.0`. The workflow rejects a tag that does not match the package version.
+2. Create and push the matching tag, for example `git tag v0.1.0-beta.1` followed by `git push origin v0.1.0-beta.1`. The workflow rejects a tag that does not match the package version.
 3. Wait for CI and all six installer targets to pass. One final job creates a **draft** GitHub Release containing the installers, architecture-specific update metadata, blockmaps, and `SHA256SUMS.txt`. Only this job has `contents: write`; package jobs explicitly disable electron-builder publishing.
 4. Download and manually check installation and first launch on the target systems, edit the release notes, then publish the draft on GitHub.
 
+Versions containing a prerelease suffix, such as `0.1.0-beta.1`, produce an explicitly unsigned preview even if signing secrets are configured. Its draft is marked **Prerelease**, includes a notice about unsigned downloads, and cannot be marked GitHub's latest stable release. Publish that draft to share it with testers; existing installations ignore prereleases during automatic update checks. The release badge includes published prereleases and links to the full releases page.
+
 Re-running a tagged workflow can replace assets on its draft, but refuses to modify a published release. The repository must permit the release job's `GITHUB_TOKEN` to write repository contents. Repository policy may require an administrator to enable this; a personal access token is not needed.
 
-With no signing secrets, Windows builds are unsigned and Mac builds use an ad-hoc signature. macOS Gatekeeper and Windows SmartScreen can warn or block downloaded applications. Optional certificate signing and Apple notarization are wired into the workflow; [docs/SIGNING.md](docs/SIGNING.md) lists the required credentials, secure preparation steps, verification, and Windows managed-signing alternatives. Custom icons and app-store submission are not configured.
+Preview Windows builds are unsigned and Mac builds use an ad-hoc signature. macOS Gatekeeper and Windows SmartScreen can warn or block downloaded applications. Stable builds can optionally use certificate signing and Apple notarization through GitHub Actions secrets. Custom icons and app-store submission are not configured.
 
 ### App updates
 
@@ -93,7 +96,7 @@ GitHub installer builds check for newer published stable releases after 30 secon
 
 In-app installation supports Windows NSIS, a running Linux AppImage, and Developer ID-signed macOS apps. Unsigned/ad-hoc Macs and unpacked Linux apps offer the release download page instead. macOS ZIP assets, architecture-specific `latest*.yml` files, and blockmaps are part of the release; keep them attached. Drafts and prereleases are not offered to installed apps.
 
-The update source is the GitHub repository building the installer. It must have public releases; the app contains no GitHub token and cannot read private release assets. Local/source builds have updates disabled unless packaged with the workflow's feed metadata. Automated Electron tests set `JOURNAL_DISABLE_UPDATES=1` and never contact the update server. Full installation/update verification needs two published versions and the target machines; see [the signing guide](docs/SIGNING.md#before-publishing-and-testing-updates).
+The update source is the GitHub repository building the installer. It must have public releases; the app contains no GitHub token and cannot read private release assets. Local/source builds have updates disabled unless packaged with the workflow's feed metadata. Automated Electron tests set `JOURNAL_DISABLE_UPDATES=1` and never contact the update server. Full installation/update verification needs two published stable versions and the target machines.
 
 Standard GitHub-hosted runners are free for public repositories. Private repository jobs consume the account's included Actions minutes and may incur usage charges. See [GitHub's runner reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners) and [electron-builder's signing guide](https://www.electron.build/v26/docs/features/code-signing/).
 

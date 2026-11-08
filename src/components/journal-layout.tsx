@@ -76,7 +76,10 @@ export function JournalFooter() {
   return (
     <footer className="flex items-center justify-between gap-4 border-t border-line py-6 text-[10px] tracking-wide text-muted">
       <span>One day at a time.</span>
-      <span>No perfect words needed.</span>
+      <span className="flex flex-col items-end gap-1 text-right">
+        <span>No perfect words needed.</span>
+        <span aria-label="App version">v{import.meta.env.VITE_APP_VERSION}</span>
+      </span>
     </footer>
   );
 }

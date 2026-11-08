@@ -40,7 +40,7 @@ Use Node.js 22.12 or newer and the pnpm version declared in `package.json`. Read
 
 ## Verification
 
-Run checks appropriate to the change: `pnpm lint`, `pnpm typecheck`, `pnpm test:unit`, `pnpm test`, `pnpm test:electron`, and a production build. Packaging changes should also be checked with `pnpm package` or `pnpm dist` on the target platform. Tests must disable network updates with `JOURNAL_DISABLE_UPDATES=1`. See `docs/SIGNING.md` before changing signing; never put credentials in fixtures, logs, artifacts, or commits.
+Run checks appropriate to the change: `pnpm lint`, `pnpm typecheck`, `pnpm test:unit`, `pnpm test`, `pnpm test:electron`, and a production build. Packaging changes should also be checked with `pnpm package` or `pnpm dist` on the target platform. Tests must disable network updates with `JOURNAL_DISABLE_UPDATES=1`. Prerelease versions build unsigned previews and must stay marked as prereleases. Never put credentials in fixtures, logs, artifacts, or commits. Signing preparation notes stay in ignored `local-docs/` on the maintainer's machine.
 
 Renderer tests cover desktop and narrow layouts with a Europe/Bucharest timezone. Windows uses installed Edge by default. Electron tests need a graphical session and select the journal window separately from DevTools. `ELECTRON_EXECUTABLE_PATH` runs the same desktop checks against an existing packaged executable.
 

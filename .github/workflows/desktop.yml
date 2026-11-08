@@ -11,6 +11,10 @@ on:
         description: Also check Windows and Linux ARM64 builds.
         type: boolean
         default: false
+      unsigned:
+        description: Ignore signing credentials and build an unsigned preview.
+        type: boolean
+        default: false
     secrets:
       MAC_CSC_LINK:
         required: false
@@ -106,14 +110,14 @@ jobs:
           TARGET_PLATFORM: ${{ matrix.platform }}
           TARGET_ARCH: ${{ matrix.arch }}
           INSTALLERS: ${{ inputs.installers }}
-          CSC_LINK: ${{ matrix.platform == 'mac' && secrets.MAC_CSC_LINK || '' }}
-          CSC_KEY_PASSWORD: ${{ matrix.platform == 'mac' && secrets.MAC_CSC_KEY_PASSWORD || '' }}
-          CSC_IDENTITY_AUTO_DISCOVERY: ${{ matrix.platform == 'mac' && secrets.MAC_CSC_LINK != '' && 'true' || 'false' }}
-          APPLE_ID: ${{ matrix.platform == 'mac' && secrets.APPLE_ID || '' }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.platform == 'mac' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
-          APPLE_TEAM_ID: ${{ matrix.platform == 'mac' && secrets.APPLE_TEAM_ID || '' }}
-          WIN_CSC_LINK: ${{ matrix.platform == 'win' && secrets.WIN_CSC_LINK || '' }}
-          WIN_CSC_KEY_PASSWORD: ${{ matrix.platform == 'win' && secrets.WIN_CSC_KEY_PASSWORD || '' }}
+          CSC_LINK: ${{ !inputs.unsigned && matrix.platform == 'mac' && secrets.MAC_CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ !inputs.unsigned && matrix.platform == 'mac' && secrets.MAC_CSC_KEY_PASSWORD || '' }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ !inputs.unsigned && matrix.platform == 'mac' && secrets.MAC_CSC_LINK != '' && 'true' || 'false' }}
+          APPLE_ID: ${{ !inputs.unsigned && matrix.platform == 'mac' && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ !inputs.unsigned && matrix.platform == 'mac' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ !inputs.unsigned && matrix.platform == 'mac' && secrets.APPLE_TEAM_ID || '' }}
+          WIN_CSC_LINK: ${{ !inputs.unsigned && matrix.platform == 'win' && secrets.WIN_CSC_LINK || '' }}
+          WIN_CSC_KEY_PASSWORD: ${{ !inputs.unsigned && matrix.platform == 'win' && secrets.WIN_CSC_KEY_PASSWORD || '' }}
         run: |
           args=("--$TARGET_PLATFORM" "--$TARGET_ARCH" --publish never)
           if [ "$INSTALLERS" != true ]; then args+=(--dir); fi
@@ -121,14 +125,14 @@ jobs:
             args+=(--config.mac.identity=- --config.mac.hardenedRuntime=false)
           elif [ "$TARGET_PLATFORM" = mac ]; then
             if [ -z "$CSC_KEY_PASSWORD" ] || [ -z "$APPLE_ID" ] || [ -z "$APPLE_APP_SPECIFIC_PASSWORD" ] || [ -z "$APPLE_TEAM_ID" ]; then
-              echo 'macOS signing requires all five MAC_CSC/APPLE secrets. See docs/SIGNING.md.' >&2
+              echo 'macOS signing requires MAC_CSC_LINK, MAC_CSC_KEY_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, and APPLE_TEAM_ID.' >&2
               exit 1
             fi
             args+=(--config.mac.forceCodeSigning=true --config.mac.notarize=true)
           fi
           if [ "$TARGET_PLATFORM" = win ] && [ -n "$WIN_CSC_LINK" ]; then
             if [ -z "$WIN_CSC_KEY_PASSWORD" ]; then
-              echo 'Windows signing requires WIN_CSC_KEY_PASSWORD. See docs/SIGNING.md.' >&2
+              echo 'Windows signing requires WIN_CSC_KEY_PASSWORD.' >&2
               exit 1
             fi
             args+=(--config.win.forceCodeSigning=true)

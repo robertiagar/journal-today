@@ -22,17 +22,22 @@ jobs:
     name: Check release version
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    outputs:
+      prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
       - name: Require a tag matching package.json
+        id: version
         run: |
           node <<'NODE'
+          const { appendFileSync } = require('node:fs');
           const { version } = require('./package.json');
           if (process.env.GITHUB_REF_TYPE === 'tag' && process.env.GITHUB_REF_NAME !== `v${version}`) {
             throw new Error(`Tag must be v${version}, received ${process.env.GITHUB_REF_NAME}`);
           }
+          appendFileSync(process.env.GITHUB_OUTPUT, `prerelease=${version.includes('-')}\n`);
           NODE
 
   checks:
@@ -40,7 +45,7 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   installers:
-    needs: checks
+    needs: [version, checks]
     uses: ./.github/workflows/desktop.yml
     secrets:
       MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
@@ -53,6 +58,7 @@ jobs:
     with:
       installers: true
       include_arm64: ${{ github.event_name == 'push' || inputs.include_arm64 }}
+      unsigned: ${{ needs.version.outputs.prerelease == 'true' }}
 
   draft:
     name: Draft GitHub Release
@@ -83,7 +89,17 @@ jobs:
             node -e "if (!require('./release-state.json').isDraft) throw new Error('Refusing to replace assets on a published release')"
           else
             args=("$RELEASE_TAG" --verify-tag --draft --title "Journal Today $RELEASE_TAG" --generate-notes)
-            if [[ "$RELEASE_TAG" == *-* ]]; then args+=(--prerelease); fi
+            if [[ "$RELEASE_TAG" == *-* ]]; then
+              cat > prerelease-notes.md <<'NOTES'
+          This is an unsigned preview for testing. Windows may show an Unknown Publisher or SmartScreen warning. macOS builds use an ad-hoc signature and are not notarized; Gatekeeper may block them.
+
+          Download the installer for your operating system and architecture. Existing installations do not automatically update to prereleases.
+          NOTES
+              args+=(--prerelease --latest=false --notes-file prerelease-notes.md)
+            fi
             gh release create "${args[@]}"
+          fi
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            gh release edit "$RELEASE_TAG" --prerelease --latest=false
           fi
           gh release upload "$RELEASE_TAG" release/* --clobber
