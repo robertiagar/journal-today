@@ -6,6 +6,7 @@
   "description": "A quiet desktop journal, one day at a time.",
   "main": "electron/main.cjs",
   "author": "Journal Today",
+  "license": "MIT",
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:renderer": "vite --host 127.0.0.1 --port 3000 --strictPort",
@@ -16,34 +17,35 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "playwright test",
+    "test:unit": "node --test tests/unit/*.test.cjs",
     "test:electron": "pnpm build && playwright test --config playwright.electron.config.ts"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@fontsource-variable/geist": "^5.2.8",
+    "@playwright/test": "^1.65.0",
     "@tailwindcss/typography": "^0.5.20",
+    "@tailwindcss/vite": "^4.3.5",
     "@tiptap/core": "^3.33.0",
     "@tiptap/extension-placeholder": "^3.33.0",
     "@tiptap/markdown": "^3.33.0",
     "@tiptap/pm": "^3.33.0",
     "@tiptap/react": "^3.33.0",
     "@tiptap/starter-kit": "^3.33.0",
-    "date-fns": "^4.4.0",
-    "framer-motion": "^14.10.1",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
-    "@playwright/test": "^1.65.0",
-    "@fontsource-variable/geist": "^5.2.8",
-    "@tailwindcss/vite": "^4.3.5",
-    "@eslint/js": "^9.39.5",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
     "@vitejs/plugin-react": "^6.2.1",
+    "date-fns": "^4.4.0",
     "electron": "^45.2.3",
     "electron-builder": "^26.18.0",
+    "eslint": "^9",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react-hooks": "^7.0.1",
+    "framer-motion": "^14.10.1",
     "globals": "^16.4.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "typescript-eslint": "^8.62.0",
@@ -52,14 +54,50 @@
   "build": {
     "appId": "com.journaltoday.desktop",
     "productName": "Journal Today",
-    "directories": { "output": "release" },
-    "files": ["dist/**/*", "electron/**/*", "package.json"],
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json",
+      "LICENSE",
+      "!**/*.{pem,p12,pfx,p8,key,mobileprovision,provisionprofile,keychain,keychain-db,keystore,jks}",
+      "!**/.env*",
+      "!**/.secrets/**"
+    ],
     "asar": true,
-    "win": { "target": ["nsis"] },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true },
-    "mac": { "target": ["dmg"], "category": "public.app-category.lifestyle" },
-    "linux": { "target": ["AppImage"], "category": "Office" }
+    "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.lifestyle",
+      "entitlements": "electron/entitlements.mac.plist",
+      "entitlementsInherit": "electron/entitlements.mac.plist"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Office"
+    }
   },
-  "engines": { "node": ">=22.12.0" },
-  "packageManager": "pnpm@10.30.0"
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "packageManager": "pnpm@10.30.0",
+  "dependencies": {
+    "electron-updater": "^6.8.11"
+  }
 }

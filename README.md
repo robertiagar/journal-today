@@ -1,5 +1,11 @@
 # Journal / Today
 
+[![Release](https://img.shields.io/github/v/release/robertiagar/journal-today)](https://github.com/robertiagar/journal-today/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/robertiagar/journal-today/total)](https://github.com/robertiagar/journal-today/releases)
+[![Build installers](https://github.com/robertiagar/journal-today/actions/workflows/release.yml/badge.svg)](https://github.com/robertiagar/journal-today/actions/workflows/release.yml)
+[![CI](https://github.com/robertiagar/journal-today/actions/workflows/ci.yml/badge.svg)](https://github.com/robertiagar/journal-today/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A quiet, offline Electron journal with a borderless window, a draggable title bar, custom window controls, and a softly rounded writing surface. Markdown formatting, local saving, and midnight date markers carry over from the original application.
 
 ## Run and develop
@@ -46,7 +52,50 @@ Builds an unpacked desktop application in `release/`. On Windows, launch `releas
 pnpm dist
 ```
 
-Builds an installer for the current platform: NSIS on Windows, DMG on macOS, or AppImage on Linux. Build each platform on that platform. Signing credentials and custom application icons are not configured; local builds use Electron's default icon and are unsigned.
+Builds an installer for the current platform: NSIS on Windows, DMG plus ZIP on macOS, or AppImage on Linux. Build each platform on that platform. Local builds use Electron's default icon and have no configured publisher identity. See [signing setup](docs/SIGNING.md) for optional signing and notarization in GitHub builds.
+
+### GitHub builds and releases
+
+GitHub Actions installs the latest Node.js 22 patch (from `.node-version`), pnpm from `package.json`, and dependencies from the frozen lockfile. Enable Actions in the GitHub repository; no custom secrets are required for these unsigned builds.
+
+The **CI** workflow runs on pull requests and pushes to `main` or `master`. It checks lint, TypeScript, the production renderer build, and desktop/narrow browser tests. It also builds and tests both the source and unpacked Electron app on Windows x64, Intel macOS, Apple Silicon macOS, and Linux x64. Linux checks use Xvfb and Openbox, with Chromium's sandbox kept enabled. Test profiles are disposable; diagnostic uploads contain only test screenshots, traces, and error context.
+
+The **Build installers** workflow produces:
+
+| System | Architecture | Installer |
+| --- | --- | --- |
+| Windows | x64 and ARM64 | NSIS `.exe` |
+| macOS | Intel x64 and Apple Silicon ARM64 | `.dmg` and update `.zip` |
+| Linux | x64 and ARM64 | `.AppImage` |
+
+Each target builds on a runner with the matching OS and architecture. Every packaged executable must pass the Electron checks before its installer is uploaded. Filenames include the app version, operating system, and architecture.
+
+To try a build without creating a release:
+
+1. Push the workflow files to GitHub's default branch.
+2. Open **Actions → Build installers → Run workflow** and choose a branch. Windows/Linux ARM64 builds are enabled by default; uncheck that option for the four primary targets.
+3. After a successful run, download the `installers-*` artifacts from its summary. They are retained for 14 days. Manual runs never create a GitHub Release, including when run against a tag.
+
+To prepare a release:
+
+1. Update `version` in `package.json` and commit the change. Use a new version for each public release.
+2. Create and push the matching tag, for example `git tag v0.1.0` followed by `git push origin v0.1.0`. The workflow rejects a tag that does not match the package version.
+3. Wait for CI and all six installer targets to pass. One final job creates a **draft** GitHub Release containing the installers, architecture-specific update metadata, blockmaps, and `SHA256SUMS.txt`. Only this job has `contents: write`; package jobs explicitly disable electron-builder publishing.
+4. Download and manually check installation and first launch on the target systems, edit the release notes, then publish the draft on GitHub.
+
+Re-running a tagged workflow can replace assets on its draft, but refuses to modify a published release. The repository must permit the release job's `GITHUB_TOKEN` to write repository contents. Repository policy may require an administrator to enable this; a personal access token is not needed.
+
+With no signing secrets, Windows builds are unsigned and Mac builds use an ad-hoc signature. macOS Gatekeeper and Windows SmartScreen can warn or block downloaded applications. Optional certificate signing and Apple notarization are wired into the workflow; [docs/SIGNING.md](docs/SIGNING.md) lists the required credentials, secure preparation steps, verification, and Windows managed-signing alternatives. Custom icons and app-store submission are not configured.
+
+### App updates
+
+GitHub installer builds check for newer published stable releases after 30 seconds and every six hours. **Help → Check for Updates…** also checks on demand (press Alt to access the menu on Windows/Linux). Offline background checks stay silent. Downloads require confirmation, and a second prompt lets you restart immediately or keep writing and install later through the same menu. Updates never install automatically on quit. The normal renderer close lifecycle flushes pending journal changes.
+
+In-app installation supports Windows NSIS, a running Linux AppImage, and Developer ID-signed macOS apps. Unsigned/ad-hoc Macs and unpacked Linux apps offer the release download page instead. macOS ZIP assets, architecture-specific `latest*.yml` files, and blockmaps are part of the release; keep them attached. Drafts and prereleases are not offered to installed apps.
+
+The update source is the GitHub repository building the installer. It must have public releases; the app contains no GitHub token and cannot read private release assets. Local/source builds have updates disabled unless packaged with the workflow's feed metadata. Automated Electron tests set `JOURNAL_DISABLE_UPDATES=1` and never contact the update server. Full installation/update verification needs two published versions and the target machines; see [the signing guide](docs/SIGNING.md#before-publishing-and-testing-updates).
+
+Standard GitHub-hosted runners are free for public repositories. Private repository jobs consume the account's included Actions minutes and may incur usage charges. See [GitHub's runner reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners) and [electron-builder's signing guide](https://www.electron.build/v26/docs/features/code-signing/).
 
 ## Writing
 
@@ -124,13 +173,14 @@ tests/          Renderer regression scenarios and Electron integration tests
 
 The runtime is Electron with a Vite-built React renderer; there is no Next.js runtime or local production server. Vite bundles React and the local Geist font into `dist/`. Electron serves bundled files through a standard secure custom protocol. The renderer has no Node.js access; a sandboxed, context-isolated preload exposes only window controls. IPC validates the main frame and application origin. Navigation stays in the journal, while allowed external navigation and popup URLs open in the system browser. The editor keeps ordinary link clicks available for editing. These choices follow the [Electron security guide](https://www.electronjs.org/docs/latest/tutorial/security) and [custom window interactions guide](https://www.electronjs.org/docs/latest/tutorial/custom-window-interactions).
 
-All renderer dependencies are development dependencies because their compiled output ships inside the desktop bundle.
+All renderer dependencies are development dependencies because their compiled output ships inside the desktop bundle. `electron-updater` is a production dependency used only by the main process; update checks add no renderer or preload privileges.
 
 ## Checks
 
 ```sh
 pnpm lint
 pnpm typecheck
+pnpm test:unit
 pnpm test
 pnpm test:electron
 pnpm package
@@ -151,3 +201,7 @@ Remove-Item Env:ELECTRON_EXECUTABLE_PATH
 ```
 
 `JOURNAL_USER_DATA_DIR` selects an isolated profile when running from source. The standard `--user-data-dir=/absolute/path` Electron switch is also supported, including in packaged builds.
+
+## License
+
+Journal Today is available under the [MIT License](LICENSE). Third-party dependencies retain their respective licenses.

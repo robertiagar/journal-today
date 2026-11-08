@@ -2,10 +2,12 @@ import { _electron as electron, expect, test, type ElectronApplication } from "@
 import path from "node:path";
 
 async function launch(profile: string) {
-  const env: Record<string, string> = { JOURNAL_USER_DATA_DIR: profile };
+  const env: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {
     if (value !== undefined) env[key] = value;
   }
+  env.JOURNAL_USER_DATA_DIR = profile;
+  env.JOURNAL_DISABLE_UPDATES = "1";
   delete env.ELECTRON_RUN_AS_NODE;
   delete env.ELECTRON_RENDERER_URL;
   const executablePath = process.env.ELECTRON_EXECUTABLE_PATH;

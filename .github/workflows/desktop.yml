@@ -1,0 +1,171 @@
+name: Desktop builds
+
+on:
+  workflow_call:
+    inputs:
+      installers:
+        description: Build and upload installers instead of unpacked applications only.
+        type: boolean
+        default: false
+      include_arm64:
+        description: Also check Windows and Linux ARM64 builds.
+        type: boolean
+        default: false
+    secrets:
+      MAC_CSC_LINK:
+        required: false
+      MAC_CSC_KEY_PASSWORD:
+        required: false
+      APPLE_ID:
+        required: false
+      APPLE_APP_SPECIFIC_PASSWORD:
+        required: false
+      APPLE_TEAM_ID:
+        required: false
+      WIN_CSC_LINK:
+        required: false
+      WIN_CSC_KEY_PASSWORD:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  targets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Select native build targets
+        id: matrix
+        env:
+          INCLUDE_ARM64: ${{ inputs.include_arm64 }}
+        run: |
+          node <<'NODE'
+          const { appendFileSync } = require('node:fs');
+          const include = [
+            { platform: 'win', arch: 'x64', runner: 'windows-2025', executable: 'release/win-unpacked/Journal Today.exe' },
+            { platform: 'mac', arch: 'x64', runner: 'macos-15-intel', executable: 'release/mac/Journal Today.app/Contents/MacOS/Journal Today' },
+            { platform: 'mac', arch: 'arm64', runner: 'macos-15', executable: 'release/mac-arm64/Journal Today.app/Contents/MacOS/Journal Today' },
+            { platform: 'linux', arch: 'x64', runner: 'ubuntu-24.04', executable: 'release/linux-unpacked/journal-today' },
+          ];
+          if (process.env.INCLUDE_ARM64 === 'true') {
+            include.push(
+              { platform: 'win', arch: 'arm64', runner: 'windows-11-arm', executable: 'release/win-arm64-unpacked/Journal Today.exe' },
+              { platform: 'linux', arch: 'arm64', runner: 'ubuntu-24.04-arm', executable: 'release/linux-arm64-unpacked/journal-today' },
+            );
+          }
+          appendFileSync(process.env.GITHUB_OUTPUT, `matrix=${JSON.stringify({ include })}\n`);
+          NODE
+
+  build:
+    name: ${{ matrix.platform }} ${{ matrix.arch }}
+    needs: targets
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.targets.outputs.matrix) }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      TZ: Europe/Bucharest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Install Linux desktop dependencies
+        if: runner.os == 'Linux'
+        run: |
+          pnpm exec playwright install-deps chromium
+          sudo apt-get install --no-install-recommends -y xvfb openbox libopenjp2-tools
+          # Ubuntu's AppArmor policy otherwise blocks Chromium user namespaces
+          # in unpacked CI executables. Keep Electron's sandbox enabled.
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - run: pnpm build
+      - name: Check the source application
+        if: ${{ !inputs.installers }}
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            xvfb-run -a --server-args="-screen 0 1280x1024x24" bash -e -c 'openbox > /tmp/journal-openbox.log 2>&1 & pnpm exec playwright test --config playwright.electron.config.ts'
+          else
+            pnpm exec playwright test --config playwright.electron.config.ts
+          fi
+      - name: Package the application
+        env:
+          TARGET_PLATFORM: ${{ matrix.platform }}
+          TARGET_ARCH: ${{ matrix.arch }}
+          INSTALLERS: ${{ inputs.installers }}
+          CSC_LINK: ${{ matrix.platform == 'mac' && secrets.MAC_CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ matrix.platform == 'mac' && secrets.MAC_CSC_KEY_PASSWORD || '' }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ matrix.platform == 'mac' && secrets.MAC_CSC_LINK != '' && 'true' || 'false' }}
+          APPLE_ID: ${{ matrix.platform == 'mac' && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.platform == 'mac' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ matrix.platform == 'mac' && secrets.APPLE_TEAM_ID || '' }}
+          WIN_CSC_LINK: ${{ matrix.platform == 'win' && secrets.WIN_CSC_LINK || '' }}
+          WIN_CSC_KEY_PASSWORD: ${{ matrix.platform == 'win' && secrets.WIN_CSC_KEY_PASSWORD || '' }}
+        run: |
+          args=("--$TARGET_PLATFORM" "--$TARGET_ARCH" --publish never)
+          if [ "$INSTALLERS" != true ]; then args+=(--dir); fi
+          if [ "$TARGET_PLATFORM" = mac ] && [ -z "$CSC_LINK" ]; then
+            args+=(--config.mac.identity=- --config.mac.hardenedRuntime=false)
+          elif [ "$TARGET_PLATFORM" = mac ]; then
+            if [ -z "$CSC_KEY_PASSWORD" ] || [ -z "$APPLE_ID" ] || [ -z "$APPLE_APP_SPECIFIC_PASSWORD" ] || [ -z "$APPLE_TEAM_ID" ]; then
+              echo 'macOS signing requires all five MAC_CSC/APPLE secrets. See docs/SIGNING.md.' >&2
+              exit 1
+            fi
+            args+=(--config.mac.forceCodeSigning=true --config.mac.notarize=true)
+          fi
+          if [ "$TARGET_PLATFORM" = win ] && [ -n "$WIN_CSC_LINK" ]; then
+            if [ -z "$WIN_CSC_KEY_PASSWORD" ]; then
+              echo 'Windows signing requires WIN_CSC_KEY_PASSWORD. See docs/SIGNING.md.' >&2
+              exit 1
+            fi
+            args+=(--config.win.forceCodeSigning=true)
+          fi
+          if [ "$INSTALLERS" = true ]; then
+            args+=("--config.publish.provider=github"
+              "--config.publish.owner=${GITHUB_REPOSITORY%/*}"
+              "--config.publish.repo=${GITHUB_REPOSITORY#*/}"
+              "--config.publish.channel=latest-$TARGET_ARCH"
+              "--config.extraMetadata.journalReleaseUrl=https://github.com/$GITHUB_REPOSITORY/releases/latest")
+          fi
+          pnpm exec electron-builder "${args[@]}"
+      - name: Check the packaged application
+        env:
+          PACKAGED_EXECUTABLE: ${{ matrix.executable }}
+        run: |
+          export ELECTRON_EXECUTABLE_PATH="$GITHUB_WORKSPACE/$PACKAGED_EXECUTABLE"
+          if [ "$RUNNER_OS" = Linux ]; then
+            xvfb-run -a --server-args="-screen 0 1280x1024x24" bash -e -c 'openbox > /tmp/journal-openbox.log 2>&1 & pnpm exec playwright test --config playwright.electron.config.ts'
+          else
+            pnpm exec playwright test --config playwright.electron.config.ts
+          fi
+      - name: Upload installers
+        if: inputs.installers
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: installers-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.zip
+            release/*.AppImage
+            release/*.blockmap
+            release/latest*.yml
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - name: Upload desktop diagnostics
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: desktop-diagnostics-${{ matrix.platform }}-${{ matrix.arch }}-${{ inputs.installers }}
+          path: |
+            test-results/electron/**/*.png
+            test-results/electron/**/*.zip
+            test-results/electron/**/*.md
+          retention-days: 7

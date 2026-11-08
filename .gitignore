@@ -28,6 +28,19 @@
 .DS_Store
 *.pem
 
+# signing credentials (public certificate identity still ships in signed apps)
+*.p12
+*.pfx
+*.p8
+*.key
+*.mobileprovision
+*.provisionprofile
+*.keychain
+*.keychain-db
+*.keystore
+*.jks
+/.secrets/
+
 # debug
 npm-debug.log*
 yarn-debug.log*

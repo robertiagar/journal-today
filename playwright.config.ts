@@ -3,7 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests",
   outputDir: "./test-results/renderer",
-  testIgnore: "**/electron/**",
+  testIgnore: ["**/electron/**", "**/unit/**"],
   fullyParallel: true,
   use: {
     baseURL: "http://127.0.0.1:3000",

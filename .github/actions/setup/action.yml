@@ -1,0 +1,13 @@
+name: Set up Journal Today
+description: Install the repository's Node and pnpm toolchain and locked dependencies.
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+    - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      with:
+        node-version-file: .node-version
+        check-latest: true
+        cache: pnpm
+    - run: pnpm install --frozen-lockfile
+      shell: bash

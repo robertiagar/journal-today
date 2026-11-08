@@ -1,7 +1,9 @@
 const { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, protocol, screen, session, shell } = require("electron");
-const { readFileSync, writeFileSync } = require("node:fs");
+const { existsSync, readFileSync, writeFileSync } = require("node:fs");
+const { spawnSync } = require("node:child_process");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
+const { createUpdateController } = require("./updates.cjs");
 
 const appUrl = "journal://app/";
 const rendererDirectory = path.join(__dirname, "../dist");
@@ -24,6 +26,39 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 let mainWindow;
+let updates;
+
+function configureUpdates() {
+  if (!app.isPackaged || process.env.JOURNAL_DISABLE_UPDATES === "1"
+    || !existsSync(path.join(process.resourcesPath, "app-update.yml"))) return;
+  const releaseUrl = require("../package.json").journalReleaseUrl;
+  // Only CI embeds this URL; never take an update server or credentials from
+  // renderer messages, journal content, or runtime environment variables.
+  if (typeof releaseUrl !== "string" || !/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/releases\/latest$/.test(releaseUrl)) return;
+
+  let canInstall = process.platform !== "linux" || Boolean(process.env.APPIMAGE);
+  if (process.platform === "darwin") {
+    const signature = spawnSync("/usr/bin/codesign", ["-dv", "--verbose=2", path.resolve(path.dirname(process.execPath), "../..")], { encoding: "utf8" });
+    canInstall = signature.status === 0 && signature.stderr.includes("Authority=Developer ID Application:");
+  }
+  const { autoUpdater } = require("electron-updater");
+  // Avoid writing updater logs or URLs to the user's journal profile.
+  autoUpdater.logger = null;
+  updates = createUpdateController({
+    updater: autoUpdater,
+    arch: process.arch,
+    canInstall,
+    openRelease: () => shell.openExternal(releaseUrl),
+    showMessage: (options) => mainWindow && !mainWindow.isDestroyed()
+      ? dialog.showMessageBox(mainWindow, options)
+      : dialog.showMessageBox(options),
+  });
+  const initial = setTimeout(() => { void updates.check(); }, 30_000);
+  const periodic = setInterval(() => { void updates.check(); }, 6 * 60 * 60 * 1000);
+  initial.unref();
+  periodic.unref();
+  app.once("will-quit", () => { clearTimeout(initial); clearInterval(periodic); });
+}
 
 function isTrustedFrame(event) {
   const frame = event.senderFrame;
@@ -144,6 +179,7 @@ if (!app.requestSingleInstanceLock()) {
     }
     ipcMain.handle("window:is-maximized", (event) => isTrustedFrame(event) && mainWindow.isMaximized());
 
+    configureUpdates();
     Menu.setApplicationMenu(Menu.buildFromTemplate([
       ...(process.platform === "darwin" ? [{ role: "appMenu" }] : []),
       { role: "fileMenu" },
@@ -154,6 +190,9 @@ if (!app.requestSingleInstanceLock()) {
         ...(!app.isPackaged ? [{ role: "reload" }, { role: "toggleDevTools" }] : []),
       ] },
       { role: "windowMenu" },
+      { role: "help", submenu: [
+        { id: "check-for-updates", label: "Check for Updates…", enabled: Boolean(updates), click: () => { void updates?.check(true); } },
+      ] },
     ]));
     await createWindow();
     app.on("activate", () => {
