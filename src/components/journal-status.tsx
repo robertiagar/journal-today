@@ -4,7 +4,8 @@ const saveMessages: Record<JournalSaveStatus, string> = {
   loading: "Opening your pages…",
   saving: "Saving…",
   saved: "Saved on this device",
-  unavailable: "Couldn’t save. Keep this tab open.",
+  unavailable: "Couldn’t save. Keep this window open.",
+  changed: "Saved journal changed. Reload to load it.",
 };
 
 type JournalStatusProps = {
@@ -13,7 +14,7 @@ type JournalStatusProps = {
 };
 
 export function JournalStatus({ saveStatus, wordCount }: JournalStatusProps) {
-  const indicatorColor = saveStatus === "unavailable" ? "bg-accent" : "bg-sage";
+  const indicatorColor = saveStatus === "unavailable" || saveStatus === "changed" ? "bg-accent" : "bg-sage";
 
   return (
     <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-5 text-[11px] text-muted">

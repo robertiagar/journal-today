@@ -1,5 +1,3 @@
-"use client";
-
 import type { Editor } from "@tiptap/core";
 import { useEffect } from "react";
 import { journalDayKey, journalDayTick } from "../lib/journal-boundaries";
@@ -27,6 +25,7 @@ export function useJournalLifecycle(
 
     const timer = window.setInterval(checkForNewDay, 1_000);
     window.addEventListener("pagehide", saveBeforeLeaving);
+    window.addEventListener("beforeunload", saveBeforeLeaving);
     window.addEventListener("focus", checkForNewDay);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
@@ -34,6 +33,7 @@ export function useJournalLifecycle(
       saveBeforeLeaving();
       window.clearInterval(timer);
       window.removeEventListener("pagehide", saveBeforeLeaving);
+      window.removeEventListener("beforeunload", saveBeforeLeaving);
       window.removeEventListener("focus", checkForNewDay);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };

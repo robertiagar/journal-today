@@ -1,5 +1,3 @@
-"use client";
-
 import type { Editor } from "@tiptap/core";
 import Placeholder from "@tiptap/extension-placeholder";
 import { Markdown } from "@tiptap/markdown";
@@ -9,6 +7,7 @@ import { useCallback, useRef, useState } from "react";
 import { JournalBoundaries } from "../lib/journal-boundaries";
 import {
   emptyJournal,
+  JournalStorageConflictError,
   restoreJournal,
   saveJournal,
   type JournalSaveStatus,
@@ -47,8 +46,8 @@ export function useJournalEditor() {
       try {
         saveJournal(editor);
         setSaveStatus("saved");
-      } catch {
-        setSaveStatus("unavailable");
+      } catch (error) {
+        setSaveStatus(error instanceof JournalStorageConflictError ? "changed" : "unavailable");
       }
     }, 400);
   };

@@ -1,3 +1,5 @@
+onlyBuiltDependencies:
+  - electron
+  - esbuild
 ignoredBuiltDependencies:
-  - sharp
-  - unrs-resolver
+  - electron-winstaller

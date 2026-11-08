@@ -2,9 +2,11 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests",
+  outputDir: "./test-results/renderer",
+  testIgnore: "**/electron/**",
   fullyParallel: true,
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: "http://127.0.0.1:3000",
     timezoneId: "Europe/Bucharest",
     locale: "en-US",
     channel: process.env.PLAYWRIGHT_CHANNEL ?? (process.platform === "win32" ? "msedge" : undefined),
@@ -15,8 +17,8 @@ export default defineConfig({
     { name: "mobile", use: { ...devices["iPhone 13"], defaultBrowserType: "chromium" } },
   ],
   webServer: {
-    command: "node node_modules/next/dist/bin/next dev --port 3000",
-    url: "http://localhost:3000",
+    command: "node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 3000 --strictPort",
+    url: "http://127.0.0.1:3000",
     reuseExistingServer: !process.env.CI,
   },
 });

@@ -1,5 +1,26 @@
 import { expect, test } from "@playwright/test";
 
+test("restores a journal copied into storage before reload", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("status")).toHaveText("Saved on this device");
+  await page.evaluate(() => {
+    localStorage.setItem("journal-today:v1", JSON.stringify({
+      content: {
+        type: "doc",
+        content: [
+          { type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "My browser journal" }] },
+          { type: "paragraph", attrs: { journalDays: ["2026-11-08"] }, content: [{ type: "text", text: "A memory to keep." }] },
+        ],
+      },
+      day: "2026-11-08",
+    }));
+  });
+  await page.reload();
+  await expect(page.getByRole("textbox")).toContainText("My browser journal");
+  await expect(page.getByRole("textbox")).toContainText("A memory to keep.");
+  await expect(page.locator('.journal-input [data-journal-days*="2026-11-08"]')).toHaveCount(1);
+});
+
 test("formats typed Markdown, pastes Markdown, and restores a saved journal", async ({ page }) => {
   await page.goto("/");
   const journal = page.getByRole("textbox", { name: "Journal entry" });
@@ -32,6 +53,21 @@ test("formats typed Markdown, pastes Markdown, and restores a saved journal", as
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
+test("keeps unreadable stored content when the blank editor unloads", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("journal-today:v1", '{"content":"damaged backup"}');
+  });
+  await page.goto("/");
+  await expect(page.getByRole("status")).toContainText("Couldn’t save");
+  await page.getByRole("textbox").locator("h1").click();
+  await page.keyboard.type("A new thought");
+  await expect(page.getByRole("status")).toContainText("Couldn’t save");
+  // A failed restore must leave the original data available for recovery.
+  expect(await page.evaluate(() => localStorage.getItem("journal-today:v1"))).toBe('{"content":"damaged backup"}');
+  await page.getByRole("textbox").evaluate(() => window.dispatchEvent(new Event("pagehide")));
+  expect(await page.evaluate(() => localStorage.getItem("journal-today:v1"))).toBe('{"content":"damaged backup"}');
+});
+
 test("midnight pins the new day to the active paragraph, including edits above it", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.clock.install({ time: new Date("2026-11-08T23:59:55+02:00") });
@@ -43,7 +79,7 @@ test("midnight pins the new day to the active paragraph, including edits above i
   await page.keyboard.type("A late-night thought.");
   await expect(page.getByText("is on its way")).toBeAttached();
   await page.clock.runFor(6_000);
-  const boundary = journal.locator('[data-journal-days*=\"2026-11-09\"]');
+  const boundary = journal.locator('[data-journal-days*="2026-11-09"]');
   await expect(boundary).toContainText("A late-night thought.");
   await expect(boundary).not.toContainText("Before midnight.");
 
@@ -77,11 +113,14 @@ test("midnight pins the new day to the active paragraph, including edits above i
   await expect(boundary).toContainText("A late-night thought.");
   await expect(boundary).not.toContainText("An extra thought above.");
   await page.clock.runFor(9_000);
+  // The sidebar follows the paragraph being read, including earlier days.
+  await boundary.click();
+  await page.clock.runFor(50);
   await expect(page.locator('[aria-label="Current journal date"] time[datetime="2026-11-09"]')).toHaveCount(1);
   await expect(page.locator('[aria-label="Current journal date"] time[datetime="2026-11-08"]')).toHaveCount(0);
   await expect(page.getByRole("status")).toHaveText("Saved on this device");
   await page.reload();
-  await expect(page.getByRole("textbox").locator('[data-journal-days*=\"2026-11-09\"]')).toContainText("A late-night thought.");
+  await expect(page.getByRole("textbox").locator('[data-journal-days*="2026-11-09"]')).toContainText("A late-night thought.");
 });
 
 test("the previous date fades away after midnight", async ({ page }, testInfo) => {
@@ -108,11 +147,11 @@ test("resuming after midnight dates the next edit without stamping older paragra
   await page.reload();
   await expect(page.getByRole("textbox")).toContainText("Yesterday’s memory.");
   await page.clock.runFor(6_000);
-  await expect(page.locator('.journal-input [data-journal-days*=\"2026-11-09\"]')).toHaveCount(0);
+  await expect(page.locator('.journal-input [data-journal-days*="2026-11-09"]')).toHaveCount(0);
   await page.getByRole("textbox").click();
   await page.keyboard.press("Control+End");
   await page.keyboard.press("Enter");
   await page.keyboard.type("Today begins here.");
-  await expect(page.locator('.journal-input [data-journal-days*=\"2026-11-09\"]')).toContainText("Today begins here.");
-  await expect(page.locator('.journal-input [data-journal-days*=\"2026-11-08\"]')).toContainText("Yesterday’s memory.");
+  await expect(page.locator('.journal-input [data-journal-days*="2026-11-09"]')).toContainText("Today begins here.");
+  await expect(page.locator('.journal-input [data-journal-days*="2026-11-08"]')).toContainText("Yesterday’s memory.");
 });

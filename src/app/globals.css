@@ -9,6 +9,7 @@
   --surface: #f2f2eb;
   --accent: #a56848;
   --sage: #8b9a78;
+  --font-geist-sans: "Geist Variable";
 }
 
 @theme inline {
@@ -36,6 +37,7 @@
 }
 
 body {
+  margin: 0;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
@@ -43,6 +45,117 @@ body {
 
 ::selection {
   background: color-mix(in srgb, var(--sage) 28%, transparent);
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+.desktop-window {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 0 8px 8px;
+  background: var(--surface);
+}
+
+.desktop-titlebar {
+  -webkit-app-region: drag;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  height: 40px;
+  user-select: none;
+}
+
+.desktop-caption {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: .08em;
+}
+
+.window-controls {
+  -webkit-app-region: no-drag;
+  position: absolute;
+  top: 0;
+  right: -8px;
+  height: 100%;
+  display: flex;
+}
+
+.window-controls button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+}
+
+.window-controls button:hover {
+  background: var(--line);
+  color: var(--foreground);
+}
+
+.window-controls button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -4px;
+}
+
+.window-controls .window-close:hover {
+  background: #c74646;
+  color: white;
+}
+
+.window-controls svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+}
+
+.desktop-workspace {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--background);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+.desktop-window[data-platform="darwin"] .window-controls {
+  left: -8px;
+  right: auto;
+  flex-direction: row-reverse;
+}
+
+.desktop-window[data-maximized="true"] {
+  padding: 0;
+}
+
+.desktop-window[data-maximized="true"] .window-controls {
+  right: 0;
+}
+
+.desktop-window[data-maximized="true"][data-platform="darwin"] .window-controls {
+  left: 0;
+  right: auto;
+}
+
+.desktop-window[data-maximized="true"] .desktop-workspace {
+  border-radius: 0;
+}
+
+@media (width < 40rem) {
+  .desktop-caption { font-size: 9px; }
+  .desktop-window:has(.window-controls) .desktop-caption { margin-right: 110px; }
 }
 
 .journal-input {
@@ -64,6 +177,68 @@ body {
   font-family: var(--font-geist-sans), sans-serif;
   overflow-wrap: anywhere;
 }
+
+.journal-header {
+  --header-padding-expanded: 2rem;
+  --header-padding-reduction: 1.5rem;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  flex-shrink: 0;
+  padding-block: calc(var(--header-padding-expanded) - var(--header-collapse, 0) * var(--header-padding-reduction));
+  background: var(--background);
+  overflow-anchor: none;
+}
+
+@media (width >= 40rem) {
+  .journal-header {
+    --header-padding-expanded: 2.5rem;
+    --header-padding-reduction: 2rem;
+  }
+}
+
+.journal-calendar-sticky {
+  position: sticky;
+  top: calc(var(--journal-header-height, 0px) + 24px);
+  z-index: 10;
+  padding-bottom: 20px;
+  background: var(--background);
+}
+
+.journal-day-controls {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 6px;
+  font-size: 10px;
+  letter-spacing: 0;
+  width: fit-content;
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.journal-day-controls button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+
+.journal-day-controls button:hover:not(:disabled) {
+  color: var(--foreground);
+  background: var(--surface);
+}
+
+.journal-day-controls button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.journal-day-controls button:disabled { opacity: .3; }
+.journal-day-controls svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.25; }
 
 .journal-input h1 {
   position: relative;

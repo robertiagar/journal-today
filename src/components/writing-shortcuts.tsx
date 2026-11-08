@@ -21,7 +21,7 @@ export function WritingShortcuts() {
         ))}
         <p className="border-t border-line pt-3 sm:col-span-2">
           Write or paste Markdown and it formats as you go. Your pages stay in
-          this browser. When midnight arrives, the new date stays with the
+          this device. When midnight arrives, the new date stays with the
           paragraph you’re writing.
         </p>
       </div>
