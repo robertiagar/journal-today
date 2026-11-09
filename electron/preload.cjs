@@ -5,10 +5,16 @@ contextBridge.exposeInMainWorld("desktop", {
   minimize: () => ipcRenderer.send("window:minimize"),
   toggleMaximize: () => ipcRenderer.send("window:toggle-maximize"),
   close: () => ipcRenderer.send("window:close"),
+  setTheme: (theme) => ipcRenderer.send("theme:set", theme),
   isMaximized: () => ipcRenderer.invoke("window:is-maximized"),
   onMaximizedChange: (callback) => {
     const listener = (_event, maximized) => callback(maximized);
     ipcRenderer.on("window:maximized", listener);
     return () => ipcRenderer.removeListener("window:maximized", listener);
+  },
+  onOpenSettings: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on("settings:open", listener);
+    return () => ipcRenderer.removeListener("settings:open", listener);
   },
 });

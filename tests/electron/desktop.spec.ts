@@ -61,6 +61,15 @@ test("the offline desktop has isolated window controls and a draggable title bar
       button: getComputedStyle(document.querySelector(".window-controls")!).getPropertyValue("-webkit-app-region"),
     }))).toEqual({ node: "undefined", drag: "drag", button: "no-drag" });
 
+    const accelerator = await app.evaluate(({ Menu }) =>
+      Menu.getApplicationMenu()?.items
+        .find((item) => item.label === "View")?.submenu?.items
+        .find((item) => item.label === "Settings…")?.accelerator);
+    expect(accelerator).toBe(process.platform === "darwin" ? "Command+," : "Control+,");
+    await page.keyboard.press(process.platform === "darwin" ? "Meta+Comma" : "Control+Comma");
+    await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
+    await page.keyboard.press("Escape");
+
     await page.getByRole("button", { name: "Maximize window" }).click();
     await expect(page.getByRole("button", { name: "Restore window" })).toBeVisible();
     expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isMaximized())).toBe(true);

@@ -178,6 +178,11 @@ if (!app.requestSingleInstanceLock()) {
       ipcMain.on(channel, (event) => { if (isTrustedFrame(event)) action(mainWindow); });
     }
     ipcMain.handle("window:is-maximized", (event) => isTrustedFrame(event) && mainWindow.isMaximized());
+    ipcMain.on("theme:set", (event, theme) => {
+      if (isTrustedFrame(event) && ["system", "light", "dark"].includes(theme)) {
+        nativeTheme.themeSource = theme;
+      }
+    });
 
     configureUpdates();
     Menu.setApplicationMenu(Menu.buildFromTemplate([
@@ -185,6 +190,12 @@ if (!app.requestSingleInstanceLock()) {
       { role: "fileMenu" },
       { role: "editMenu" },
       { label: "View", submenu: [
+        {
+          label: "Settings…",
+          accelerator: process.platform === "darwin" ? "Command+," : "Control+,",
+          click: () => mainWindow?.webContents.send("settings:open"),
+        },
+        { type: "separator" },
         { role: "resetZoom" }, { role: "zoomIn" }, { role: "zoomOut" },
         { type: "separator" }, { role: "togglefullscreen" },
         ...(!app.isPackaged ? [{ role: "reload" }, { role: "toggleDevTools" }] : []),

@@ -114,7 +114,7 @@ The journal starts with an editable day heading. `LET IT OUT` is its placeholder
 | Backticks around text | Inline code |
 | `[label](https://example.com)` | Link |
 
-Plain Markdown pasted into the journal is parsed too. Pasting inside a code block keeps text literal; rich HTML keeps its formatting. The interface follows the system's light/dark appearance and reduced-motion preferences.
+Plain Markdown pasted into the journal is parsed too. Pasting inside a code block keeps text literal; rich HTML keeps its formatting. The interface follows the system's light/dark appearance by default. Open **Settings** from the title bar or press **Ctrl+,** on Windows/Linux or **Command+,** on macOS to choose System, Light, or Dark. Your appearance choice is saved with the current app profile and origin. Reduced-motion preferences are also respected.
 
 Dates follow the device's local timezone. Tomorrow gradually appears during the last ten minutes of the day. At midnight, the date crossfades over eight seconds. If the editor is focused, the new day attaches to the active paragraph; if you return later, the next edit activates it. Date boundaries stay attached when inserting paragraphs or undoing and redoing changes.
 
